@@ -9,6 +9,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.ImageView;
 
 import com.facebook.AccessToken;
 import com.facebook.AccessTokenTracker;
@@ -123,6 +124,9 @@ public class MainActivity extends AppCompatActivity {
             mSignOut.setVisibility(View.GONE);
         }
         loadProfilePhoto();
+        RadarDrawable radarDrawable = new RadarDrawable();
+        ((ImageView) findViewById(R.id.radar)).setImageDrawable(radarDrawable);
+        radarDrawable.start();
     }
 
     private boolean isFacebookSignedIn() {
