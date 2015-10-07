@@ -21,7 +21,8 @@ public class RadarDrawable extends Drawable implements Animatable {
 
     private static final int DURATION = 3000;
 
-    private int mStartRadius;
+    private int mMinRadius;
+    private int mMaxRadius;
 
     private AnimatorSet mAnimator;
     private boolean mAnimating;
@@ -30,8 +31,8 @@ public class RadarDrawable extends Drawable implements Animatable {
     public RadarDrawable() {
     }
 
-    public void setStartRadius(int startRadius) {
-        mStartRadius = startRadius;
+    public void setMinRadius(int startRadius) {
+        mMinRadius = startRadius;
         if (mAnimating) {
             initAnimator();
         }
@@ -41,7 +42,7 @@ public class RadarDrawable extends Drawable implements Animatable {
 
     @Override
     protected void onBoundsChange(Rect bounds) {
-        super.onBoundsChange(bounds);
+        mMaxRadius = Math.min(bounds.width(), bounds.height()) >> 1;
         if (mAnimating) {
             initAnimator();
         }
@@ -50,8 +51,10 @@ public class RadarDrawable extends Drawable implements Animatable {
     @Override
     public void draw(Canvas canvas) {
         Rect rect = getBounds();
-        for (Circle circle : mCircles) {
-            circle.draw(canvas, rect);
+        if (isRunning()) {
+            for (Circle circle : mCircles) {
+                circle.draw(canvas, rect);
+            }
         }
     }
 
@@ -74,9 +77,7 @@ public class RadarDrawable extends Drawable implements Animatable {
     public void start() {
         mAnimating = true;
         if (!isRunning()) {
-            if (mAnimator == null) {
-                initAnimator();
-            }
+            initAnimator();
         }
     }
 
@@ -96,55 +97,37 @@ public class RadarDrawable extends Drawable implements Animatable {
     private void initAnimator() {
         if (isRunning()) {
             mAnimator.cancel();
+            mCircles.clear();
         }
 
-        Rect rect = getBounds();
-        if (rect.isEmpty()) {
+        if (mMaxRadius <= mMinRadius) {
             return;
         }
 
         mAnimator = new AnimatorSet();
-        mAnimator.play(createCircleAnimation(0, rect))
-                .with(createCircleAnimation(2000, rect));
+        mAnimator.playTogether(createCircleAnimation(0), createCircleAnimation(1000), createCircleAnimation(2000));
 
         if (mAnimating) {
             mAnimator.start();
         }
     }
 
-    private Animator createCircleAnimation(final int startDelay, Rect rect) {
-        final Circle circle = new Circle();
+    private Animator createCircleAnimation(int startDelay) {
+        Circle circle = new Circle();
         mCircles.add(circle);
-
-        ValueAnimator animator = new ValueAnimator();
-
-        animator.setValues(
-                PropertyValuesHolder.ofInt("radius", mStartRadius, Math.min(rect.centerX(), rect.centerY())),
-                PropertyValuesHolder.ofInt("alphaStroke", 255, 0),
-                PropertyValuesHolder.ofInt("alphaFill", 40, 0)
-        );
-
-        animator.setStartDelay(startDelay);
-        animator.setDuration(DURATION);
-        animator.setRepeatCount(ValueAnimator.INFINITE);
-
-        animator.addUpdateListener(new AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                circle.mRadius = (int) animation.getAnimatedValue("radius");
-                circle.mStrokePaint.setAlpha((int) animation.getAnimatedValue("alphaStroke"));
-                circle.mFillPaint.setAlpha((int) animation.getAnimatedValue("alphaFill"));
-                invalidateSelf();
-            }
-        });
-
-        return animator;
+        return circle.getAnimator(startDelay, mMinRadius, mMaxRadius);
     }
 
-    private static class Circle {
+    private class Circle implements AnimatorUpdateListener {
+
+        private static final String RADIUS = "radius";
+        private static final String ALPHA_STROKE = "alphaStroke";
+        private static final String ALPHA_FILL = "alphaFill";
+
         private Paint mStrokePaint;
         private Paint mFillPaint;
         private int mRadius;
+        private ValueAnimator mAnimator;
 
         public Circle() {
             mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -154,6 +137,28 @@ public class RadarDrawable extends Drawable implements Animatable {
             mFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             mFillPaint.setStyle(Style.FILL);
             mFillPaint.setColor(Color.GREEN);
+        }
+
+        public Animator getAnimator(int startDelay, int minRadius, int maxRadius) {
+            mAnimator = new ValueAnimator();
+            mAnimator.setValues(
+                    PropertyValuesHolder.ofInt(RADIUS, minRadius, maxRadius),
+                    PropertyValuesHolder.ofInt(ALPHA_STROKE, 200, 0),
+                    PropertyValuesHolder.ofInt(ALPHA_FILL, 30, 0)
+            );
+            mAnimator.setStartDelay(startDelay);
+            mAnimator.setDuration(DURATION);
+            mAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            mAnimator.addUpdateListener(this);
+            return mAnimator;
+        }
+
+        @Override
+        public void onAnimationUpdate(ValueAnimator animation) {
+            mRadius = (int) animation.getAnimatedValue(RADIUS);
+            mStrokePaint.setAlpha((int) animation.getAnimatedValue(ALPHA_STROKE));
+            mFillPaint.setAlpha((int) animation.getAnimatedValue(ALPHA_FILL));
+            invalidateSelf();
         }
 
         public void draw(Canvas canvas, Rect rect) {
