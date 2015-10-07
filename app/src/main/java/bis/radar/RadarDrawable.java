@@ -26,7 +26,7 @@ public class RadarDrawable extends Drawable implements Animatable {
 
     private AnimatorSet mAnimator;
     private boolean mAnimating;
-    private List<Circle> mCircles = new ArrayList<>();
+    private final List<Circle> mCircles = new ArrayList<>();
 
     public RadarDrawable() {
     }
@@ -124,8 +124,8 @@ public class RadarDrawable extends Drawable implements Animatable {
         private static final String ALPHA_STROKE = "alphaStroke";
         private static final String ALPHA_FILL = "alphaFill";
 
-        private Paint mStrokePaint;
-        private Paint mFillPaint;
+        private final Paint mStrokePaint;
+        private final Paint mFillPaint;
         private int mRadius;
         private ValueAnimator mAnimator;
 
