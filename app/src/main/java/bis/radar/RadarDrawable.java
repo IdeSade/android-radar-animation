@@ -19,8 +19,10 @@ public class RadarDrawable extends Drawable implements Animatable {
     private Paint mStrokePaint;
     private Paint mFillPaint;
     private int mRadius;
+    private int mStartRadius;
 
     private ValueAnimator mAnimator;
+    private boolean mAnimating;
 
     public RadarDrawable() {
         mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -30,27 +32,24 @@ public class RadarDrawable extends Drawable implements Animatable {
         mFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mFillPaint.setStyle(Style.FILL);
         mFillPaint.setColor(Color.GREEN);
+    }
 
-        mAnimator = new ValueAnimator();
-        mAnimator.setValues(
-                PropertyValuesHolder.ofInt("radius", 50, 150),
-                PropertyValuesHolder.ofInt("alphaStroke", 255, 0),
-                PropertyValuesHolder.ofInt("alphaFill", 30, 0)
-        );
-        mAnimator.setDuration(DURATION);
-        mAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                mRadius = (int) animation.getAnimatedValue("radius");
-                mStrokePaint.setAlpha((int) animation.getAnimatedValue("alphaStroke"));
-                mFillPaint.setAlpha((int) animation.getAnimatedValue("alphaFill"));
-                invalidateSelf();
-            }
-        });
+    public void setStartRadius(int startRadius) {
+        mStartRadius = startRadius;
+        if (mAnimating) {
+            initAnimator();
+        }
     }
 
     // Drawable
+
+    @Override
+    protected void onBoundsChange(Rect bounds) {
+        super.onBoundsChange(bounds);
+        if (mAnimating) {
+            initAnimator();
+        }
+    }
 
     @Override
     public void draw(Canvas canvas) {
@@ -76,16 +75,57 @@ public class RadarDrawable extends Drawable implements Animatable {
 
     @Override
     public void start() {
-        mAnimator.start();
+        mAnimating = true;
+        if (!isRunning()) {
+            if (mAnimator == null) {
+                initAnimator();
+            }
+        }
     }
 
     @Override
     public void stop() {
-        mAnimator.cancel();
+        mAnimating = false;
+        if (isRunning()) {
+            mAnimator.cancel();
+        }
     }
 
     @Override
     public boolean isRunning() {
-        return mAnimator.isRunning();
+        return mAnimator != null && mAnimator.isRunning();
+    }
+
+    private void initAnimator() {
+        if (isRunning()) {
+            mAnimator.cancel();
+        }
+
+        Rect rect = getBounds();
+        if (rect.isEmpty()) {
+            return;
+        }
+
+        mAnimator = new ValueAnimator();
+        mAnimator.setValues(
+                PropertyValuesHolder.ofInt("radius", mStartRadius, Math.min(rect.centerX(), rect.centerY())),
+                PropertyValuesHolder.ofInt("alphaStroke", 255, 0),
+                PropertyValuesHolder.ofInt("alphaFill", 30, 0)
+        );
+        mAnimator.setDuration(DURATION);
+        mAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mRadius = (int) animation.getAnimatedValue("radius");
+                mStrokePaint.setAlpha((int) animation.getAnimatedValue("alphaStroke"));
+                mFillPaint.setAlpha((int) animation.getAnimatedValue("alphaFill"));
+                invalidateSelf();
+            }
+        });
+
+        if (mAnimating) {
+            mAnimator.start();
+        }
     }
 }

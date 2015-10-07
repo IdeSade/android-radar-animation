@@ -18,6 +18,7 @@ import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.Profile;
+import com.facebook.ProfileTracker;
 import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
@@ -39,9 +40,17 @@ public class MainActivity extends AppCompatActivity {
 
         FacebookSdk.sdkInitialize(getApplicationContext());
         mCallbackManager = CallbackManager.Factory.create();
+
         new AccessTokenTracker() {
             @Override
             protected void onCurrentAccessTokenChanged(AccessToken oldAccessToken, AccessToken currentAccessToken) {
+                updateUI();
+            }
+        };
+
+        new ProfileTracker() {
+            @Override
+            protected void onCurrentProfileChanged(Profile oldProfile, Profile currentProfile) {
                 updateUI();
             }
         };
@@ -123,10 +132,17 @@ public class MainActivity extends AppCompatActivity {
             mSignIn.setVisibility(View.VISIBLE);
             mSignOut.setVisibility(View.GONE);
         }
-        loadProfilePhoto();
-        RadarDrawable radarDrawable = new RadarDrawable();
-        ((ImageView) findViewById(R.id.radar)).setImageDrawable(radarDrawable);
-        radarDrawable.start();
+
+        mProfilePicture.post(new Runnable() {
+            @Override
+            public void run() {
+                loadProfilePhoto();
+                RadarDrawable radarDrawable = new RadarDrawable();
+                radarDrawable.setStartRadius(Math.min(mProfilePicture.getWidth(), mProfilePicture.getHeight()) / 2);
+                radarDrawable.start();
+                ((ImageView) findViewById(R.id.radar)).setImageDrawable(radarDrawable);
+            }
+        });
     }
 
     private boolean isFacebookSignedIn() {
@@ -136,11 +152,9 @@ public class MainActivity extends AppCompatActivity {
     private void loadProfilePhoto() {
         Profile profile = Profile.getCurrentProfile();
         if (profile != null) {
-            int size = getResources().getDimensionPixelSize(R.dimen.profile_size);
-            Uri uri = profile.getProfilePictureUri(size, size);
+            Uri uri = profile.getProfilePictureUri(mProfilePicture.getWidth(), mProfilePicture.getHeight());
             Picasso.with(this)
                     .load(uri)
-                    .noFade()
                     .placeholder(android.R.color.holo_green_light)
                     .error(android.R.color.holo_red_light)
                     .into(mProfilePicture);
