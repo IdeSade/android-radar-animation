@@ -1,5 +1,7 @@
 package bis.radar;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
 import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
@@ -12,26 +14,20 @@ import android.graphics.Rect;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class RadarDrawable extends Drawable implements Animatable {
 
-    private static final int DURATION = 2000;
+    private static final int DURATION = 3000;
 
-    private Paint mStrokePaint;
-    private Paint mFillPaint;
-    private int mRadius;
     private int mStartRadius;
 
-    private ValueAnimator mAnimator;
+    private AnimatorSet mAnimator;
     private boolean mAnimating;
+    private List<Circle> mCircles = new ArrayList<>();
 
     public RadarDrawable() {
-        mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mStrokePaint.setStyle(Style.STROKE);
-        mStrokePaint.setColor(Color.GREEN);
-        mStrokePaint.setStrokeWidth(2);
-        mFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFillPaint.setStyle(Style.FILL);
-        mFillPaint.setColor(Color.GREEN);
     }
 
     public void setStartRadius(int startRadius) {
@@ -54,8 +50,9 @@ public class RadarDrawable extends Drawable implements Animatable {
     @Override
     public void draw(Canvas canvas) {
         Rect rect = getBounds();
-        canvas.drawCircle(rect.centerX(), rect.centerY(), mRadius, mFillPaint);
-        canvas.drawCircle(rect.centerX(), rect.centerY(), mRadius, mStrokePaint);
+        for (Circle circle : mCircles) {
+            circle.draw(canvas, rect);
+        }
     }
 
     @Override
@@ -106,26 +103,62 @@ public class RadarDrawable extends Drawable implements Animatable {
             return;
         }
 
-        mAnimator = new ValueAnimator();
-        mAnimator.setValues(
+        mAnimator = new AnimatorSet();
+        mAnimator.play(createCircleAnimation(0, rect))
+                .with(createCircleAnimation(2000, rect));
+
+        if (mAnimating) {
+            mAnimator.start();
+        }
+    }
+
+    private Animator createCircleAnimation(final int startDelay, Rect rect) {
+        final Circle circle = new Circle();
+        mCircles.add(circle);
+
+        ValueAnimator animator = new ValueAnimator();
+
+        animator.setValues(
                 PropertyValuesHolder.ofInt("radius", mStartRadius, Math.min(rect.centerX(), rect.centerY())),
                 PropertyValuesHolder.ofInt("alphaStroke", 255, 0),
-                PropertyValuesHolder.ofInt("alphaFill", 30, 0)
+                PropertyValuesHolder.ofInt("alphaFill", 40, 0)
         );
-        mAnimator.setDuration(DURATION);
-        mAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
+
+        animator.setStartDelay(startDelay);
+        animator.setDuration(DURATION);
+        animator.setRepeatCount(ValueAnimator.INFINITE);
+
+        animator.addUpdateListener(new AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                mRadius = (int) animation.getAnimatedValue("radius");
-                mStrokePaint.setAlpha((int) animation.getAnimatedValue("alphaStroke"));
-                mFillPaint.setAlpha((int) animation.getAnimatedValue("alphaFill"));
+                circle.mRadius = (int) animation.getAnimatedValue("radius");
+                circle.mStrokePaint.setAlpha((int) animation.getAnimatedValue("alphaStroke"));
+                circle.mFillPaint.setAlpha((int) animation.getAnimatedValue("alphaFill"));
                 invalidateSelf();
             }
         });
 
-        if (mAnimating) {
-            mAnimator.start();
+        return animator;
+    }
+
+    private static class Circle {
+        private Paint mStrokePaint;
+        private Paint mFillPaint;
+        private int mRadius;
+
+        public Circle() {
+            mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mStrokePaint.setStyle(Style.STROKE);
+            mStrokePaint.setColor(Color.GREEN);
+            mStrokePaint.setStrokeWidth(2);
+            mFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mFillPaint.setStyle(Style.FILL);
+            mFillPaint.setColor(Color.GREEN);
+        }
+
+        public void draw(Canvas canvas, Rect rect) {
+            canvas.drawCircle(rect.centerX(), rect.centerY(), mRadius, mFillPaint);
+            canvas.drawCircle(rect.centerX(), rect.centerY(), mRadius, mStrokePaint);
         }
     }
 }
